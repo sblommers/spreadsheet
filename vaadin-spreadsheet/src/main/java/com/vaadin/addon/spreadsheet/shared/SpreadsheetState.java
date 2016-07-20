@@ -17,10 +17,13 @@ package com.vaadin.addon.spreadsheet.shared;
  * #L%
  */
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
-import com.vaadin.addon.spreadsheet.client.ImageInfo;
 import com.vaadin.addon.spreadsheet.client.MergedRegion;
+import com.vaadin.addon.spreadsheet.client.OverlayInfo;
 import com.vaadin.shared.annotations.DelegateToWidget;
 import com.vaadin.shared.ui.TabIndexState;
 
@@ -74,6 +77,10 @@ public class SpreadsheetState extends TabIndexState {
 
     @DelegateToWidget
     public HashMap<Integer, String> cellStyleToCSSStyle = null;
+    @DelegateToWidget
+    public HashMap<Integer, Integer> rowIndexToStyleIndex = null;
+    @DelegateToWidget
+    public HashMap<Integer, Integer> columnIndexToStyleIndex = null;
 
     @DelegateToWidget
     public ArrayList<String> shiftedCellBorderStyles = null;
@@ -120,7 +127,7 @@ public class SpreadsheetState extends TabIndexState {
 
     public boolean hasActions;
 
-    public HashMap<String, ImageInfo> resourceKeyToImage;
+    public HashMap<String, OverlayInfo> overlays;
 
     public ArrayList<MergedRegion> mergedRegions;
 
@@ -142,4 +149,10 @@ public class SpreadsheetState extends TabIndexState {
 
     @DelegateToWidget
     public String invalidFormulaErrorMessage = "Invalid formula";
+
+    @DelegateToWidget
+    public boolean lockFormatColumns = true;
+
+    @DelegateToWidget
+    public boolean lockFormatRows = true;
 }

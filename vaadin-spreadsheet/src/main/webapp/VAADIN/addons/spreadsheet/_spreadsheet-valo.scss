@@ -524,12 +524,11 @@
       }
     }
 
-    &.protected {
-      .rh, .ch {
-        .header-resize-dnd-first,
-        .header-resize-dnd-second {
-          cursor: default;
-        }
+    &.protected.lock-format-columns .ch,
+    &.protected.lock-format-rows .rh {
+      .header-resize-dnd-first,
+      .header-resize-dnd-second {
+        cursor: default;
       }
     }
 
@@ -620,7 +619,7 @@
     }
 
     .bottom-right-pane.sheet > div.sheet-image {
-      z-index: 5;
+      z-index: 10;
     }
 
     .top-left-pane > div.sheet-image {
@@ -892,6 +891,7 @@
       }
 
       .sheet-tabsheet-infolabel {
+        background: $spreadsheet-sheet-selector-background;
         z-index: inherit;
         position: absolute;
         right: 0;
@@ -899,11 +899,14 @@
         font-size: $spreadsheet-status-label-font-size;
         border-left: $spreadsheet-border;
         padding-left: $spreadsheet-field-padding;
+        padding-right: $spreadsheet-field-padding;
         width: $spreadsheet-status-label-width;
         height: 100%;
         line-height: $spreadsheet-bottom-bar-height + $spreadsheet-border-width;
         display: inline;
         text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
       }
     }
 
@@ -1017,6 +1020,10 @@
     padding: round($spreadsheet-base-font-size / 2);
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
 
     .popupContent {
       overflow: visible;

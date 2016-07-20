@@ -128,6 +128,10 @@ public interface SheetHandler extends GroupingHandler {
 
     Map<Integer, String> getCellStyleToCSSStyle();
 
+    Map<Integer, Integer> getRowIndexToStyleIndex();
+
+    Map<Integer, Integer> getColumnIndexToStyleIndex();
+
     Map<Integer, String> getConditionalFormattingStyles();
 
     /**
@@ -177,7 +181,9 @@ public interface SheetHandler extends GroupingHandler {
 
     boolean hasCustomContextMenu();
 
-    boolean canResize();
+    boolean canResizeColumn();
+
+    boolean canResizeRow();
 
     /** Map containing 1-based row indexes and new sizes as pt */
     void onRowsResized(Map<Integer, Float> newSizes);

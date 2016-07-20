@@ -1,24 +1,25 @@
 package com.vaadin.addon.spreadsheet.test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.io.File;
-import java.net.URISyntaxException;
-import java.util.Locale;
-
+import com.google.common.base.Predicate;
+import com.vaadin.addon.spreadsheet.test.demoapps.SpreadsheetDemoUI;
+import com.vaadin.addon.spreadsheet.test.pageobjects.HeaderPage;
+import com.vaadin.addon.spreadsheet.test.tb3.MultiBrowserTest;
+import com.vaadin.testbench.elements.NativeSelectElement;
 import org.junit.Assert;
 import org.junit.Before;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.vaadin.addon.spreadsheet.test.demoapps.SpreadsheetDemoUI;
-import com.vaadin.addon.spreadsheet.test.pageobjects.HeaderPage;
-import com.vaadin.addon.spreadsheet.test.tb3.MultiBrowserTest;
-import com.vaadin.testbench.By;
-import com.vaadin.testbench.elements.NativeSelectElement;
+import java.io.File;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Locale;
+
+import static org.junit.Assert.*;
 
 public abstract class AbstractSpreadsheetTestCase extends MultiBrowserTest {
 
@@ -52,6 +53,12 @@ public abstract class AbstractSpreadsheetTestCase extends MultiBrowserTest {
         return file;
     }
 
+    protected void assertNoErrorIndicatorDetected() {
+        Assert.assertTrue(
+                "Error indicator detected when there should be none.",
+                findElements(By.className("v-errorindicator")).isEmpty());
+    }
+
     protected void assertAddressFieldValue(String expected, String actual) {
         assertEquals("Expected " + expected + " on addressField, actual:"
                 + actual, expected, actual);
@@ -65,6 +72,14 @@ public abstract class AbstractSpreadsheetTestCase extends MultiBrowserTest {
         assertTrue("Cell " + cell + " should be the selected cell", selected);
     }
 
+    protected void waitUntil(Predicate<WebDriver> condition,int timeout) {
+        new WebDriverWait(getDriver(), timeout).until(condition);
+
+    }
+    protected void waitUntil(Predicate<WebDriver> condition) {
+        new WebDriverWait(getDriver(), 20).until(condition);
+
+    }
     protected void waitUntil(ExpectedCondition<?> condition) {
         new WebDriverWait(getDriver(), 20).until(condition);
     }
@@ -92,5 +107,18 @@ public abstract class AbstractSpreadsheetTestCase extends MultiBrowserTest {
         driver.get(getTestUrl() + "?theme=" + theme);
         headerPage.loadFile(spreadsheetFile, this);
         testBench(driver).waitForVaadin();
+    }
+
+    protected void clearLog() {
+        List<WebElement> buttons = findElements(By.className("v-debugwindow-button"));
+        for (int i = 0; i < buttons.size(); i++) {
+            WebElement button = buttons.get(i);
+            String title = button.getAttribute("title");
+            if (title != null && title.startsWith("Clear log")) {
+                testBench().waitForVaadin();
+                button.click();
+                break;
+            }
+        }
     }
 }

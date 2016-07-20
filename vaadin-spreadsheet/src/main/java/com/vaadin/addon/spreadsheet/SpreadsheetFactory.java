@@ -50,17 +50,24 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFChart;
 import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
+import org.apache.poi.xssf.usermodel.XSSFGraphicFrame;
 import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFPictureData;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFShape;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.xmlbeans.XmlCursor;
+import org.apache.xmlbeans.XmlObject;
+import org.openxmlformats.schemas.drawingml.x2006.spreadsheetDrawing.CTOneCellAnchor;
+import org.openxmlformats.schemas.drawingml.x2006.spreadsheetDrawing.CTTwoCellAnchor;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTCol;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTCols;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTOutlinePr;
+import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTSheetProtection;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTWorksheet;
 
 import com.vaadin.addon.spreadsheet.client.MergedRegion;
@@ -387,84 +394,9 @@ public class SpreadsheetFactory implements Serializable {
         logMemoryUsage();
         try {
             setDefaultRowHeight(spreadsheet, sheet);
-
-            // Always have at least the default amount of rows
-            int rows = sheet.getLastRowNum() + 1;
-            if (rows < spreadsheet.getDefaultRowCount()) {
-                rows = spreadsheet.getDefaultRowCount();
-            }
-            spreadsheet.getState().rows = rows;
-
-            int charactersToPixels = ExcelToHtmlUtils.getColumnWidthInPx(sheet
-                    .getDefaultColumnWidth() * 256);
-            if (charactersToPixels > 0) {
-                spreadsheet.getState().defColW = charactersToPixels;
-            } else {
-                spreadsheet.getState().defColW = SpreadsheetUtil
-                        .getDefaultColumnWidthInPx();
-                sheet.setDefaultColumnWidth(DEFAULT_COL_WIDTH_UNITS);
-            }
-            final float[] rowHeights = new float[rows];
-            int cols = 0;
-            int tempRowIndex = -1;
-            final ArrayList<Integer> hiddenRowIndexes = new ArrayList<Integer>();
-            for (Row row : sheet) {
-                int rIndex = row.getRowNum();
-                // set the empty rows to have the default row width
-                while (++tempRowIndex != rIndex) {
-                    rowHeights[tempRowIndex] = spreadsheet.getState().defRowH;
-                }
-                if (row.getZeroHeight()) {
-                    rowHeights[rIndex] = 0.0F;
-                    hiddenRowIndexes.add(rIndex + 1);
-                } else {
-                    rowHeights[rIndex] = row.getHeightInPoints();
-                }
-                int c = row.getLastCellNum();
-                if (c > cols) {
-                    cols = c;
-                }
-            }
-            if (rows > sheet.getLastRowNum() + 1) {
-                float defaultRowHeightInPoints = sheet
-                        .getDefaultRowHeightInPoints();
-
-                int lastRowNum = sheet.getLastRowNum();
-                // if sheet is empty, also set height for 'last row' (index
-                // zero)
-                if (lastRowNum == 0) {
-                    rowHeights[0] = defaultRowHeightInPoints;
-                }
-
-                // set default height for the rest
-                for (int i = lastRowNum + 1; i < rows; i++) {
-                    rowHeights[i] = defaultRowHeightInPoints;
-                }
-            }
-            spreadsheet.getState().hiddenRowIndexes = hiddenRowIndexes;
-            spreadsheet.getState().rowH = rowHeights;
-
-            // Always have at least the default amount of columns
-            if (cols < spreadsheet.getDefaultColumnCount()) {
-                cols = spreadsheet.getDefaultColumnCount();
-            }
-            spreadsheet.getState().cols = cols;
-
-            final int[] colWidths = new int[cols];
-            final ArrayList<Integer> hiddenColumnIndexes = new ArrayList<Integer>();
-            for (int i = 0; i < cols; i++) {
-                if (sheet.isColumnHidden(i)) {
-                    colWidths[i] = 0;
-                    hiddenColumnIndexes.add(i + 1);
-                } else {
-                    colWidths[i] = ExcelToHtmlUtils.getColumnWidthInPx(sheet
-                            .getColumnWidth(i));
-                }
-            }
-            spreadsheet.getState().hiddenColumnIndexes = hiddenColumnIndexes;
-            spreadsheet.getState().colW = colWidths;
-
-            loadSheetImages(spreadsheet);
+            setDefaultColumnWidth(spreadsheet, sheet);
+            calculateSheetSizes(spreadsheet, sheet);
+            loadSheetOverlays(spreadsheet);
             loadMergedRegions(spreadsheet);
             loadFreezePane(spreadsheet);
             loadGrouping(spreadsheet);
@@ -475,10 +407,88 @@ public class SpreadsheetFactory implements Serializable {
     }
 
     /**
+     * Calculate size-related values for the sheet. Includes row and column
+     * counts, actual row heights and column widths, and hidden row and column
+     * indexes.
+     * 
+     * @param spreadsheet
+     * @param sheet
+     */
+    static void calculateSheetSizes(final Spreadsheet spreadsheet,
+            final Sheet sheet) {
+        // Always have at least the default amount of rows
+        int rows = sheet.getLastRowNum() + 1;
+        if (rows < spreadsheet.getDefaultRowCount()) {
+            rows = spreadsheet.getDefaultRowCount();
+        }
+        spreadsheet.getState().rows = rows;
+
+        final float[] rowHeights = new float[rows];
+        int cols = 0;
+        int tempRowIndex = -1;
+        final ArrayList<Integer> hiddenRowIndexes = new ArrayList<Integer>();
+        for (Row row : sheet) {
+            int rIndex = row.getRowNum();
+            // set the empty rows to have the default row width
+            while (++tempRowIndex != rIndex) {
+                rowHeights[tempRowIndex] = spreadsheet.getState().defRowH;
+            }
+            if (row.getZeroHeight()) {
+                rowHeights[rIndex] = 0.0F;
+                hiddenRowIndexes.add(rIndex + 1);
+            } else {
+                rowHeights[rIndex] = row.getHeightInPoints();
+            }
+            int c = row.getLastCellNum();
+            if (c > cols) {
+                cols = c;
+            }
+        }
+        if (rows > sheet.getLastRowNum() + 1) {
+            float defaultRowHeightInPoints = sheet
+                    .getDefaultRowHeightInPoints();
+
+            int lastRowNum = sheet.getLastRowNum();
+            // if sheet is empty, also set height for 'last row' (index
+            // zero)
+            if (lastRowNum == 0) {
+                rowHeights[0] = defaultRowHeightInPoints;
+            }
+
+            // set default height for the rest
+            for (int i = lastRowNum + 1; i < rows; i++) {
+                rowHeights[i] = defaultRowHeightInPoints;
+            }
+        }
+        spreadsheet.getState().hiddenRowIndexes = hiddenRowIndexes;
+        spreadsheet.getState().rowH = rowHeights;
+
+        // Always have at least the default amount of columns
+        if (cols < spreadsheet.getDefaultColumnCount()) {
+            cols = spreadsheet.getDefaultColumnCount();
+        }
+        spreadsheet.getState().cols = cols;
+
+        final int[] colWidths = new int[cols];
+        final ArrayList<Integer> hiddenColumnIndexes = new ArrayList<Integer>();
+        for (int i = 0; i < cols; i++) {
+            if (sheet.isColumnHidden(i)) {
+                colWidths[i] = 0;
+                hiddenColumnIndexes.add(i + 1);
+            } else {
+                colWidths[i] = ExcelToHtmlUtils.getColumnWidthInPx(sheet
+                        .getColumnWidth(i));
+            }
+        }
+        spreadsheet.getState().hiddenColumnIndexes = hiddenColumnIndexes;
+        spreadsheet.getState().colW = colWidths;
+    }
+
+    /**
      * Loads all data relating to grouping if the current sheet is a
      * {@link XSSFSheet}.
      */
-    private static void loadGrouping(Spreadsheet spreadsheet) {
+    static void loadGrouping(Spreadsheet spreadsheet) {
 
         if (spreadsheet.getActiveSheet() instanceof HSSFSheet) {
             // API not available
@@ -487,6 +497,13 @@ public class SpreadsheetFactory implements Serializable {
 
         CTWorksheet ctWorksheet = ((XSSFSheet) spreadsheet.getActiveSheet())
                 .getCTWorksheet();
+        CTSheetProtection sheetProtection = ctWorksheet.getSheetProtection();
+        if (sheetProtection != null) {
+            spreadsheet.getState().lockFormatColumns = sheetProtection
+                    .getFormatColumns();
+            spreadsheet.getState().lockFormatRows = sheetProtection
+                    .getFormatRows();
+        }
 
         spreadsheet.getState().colGroupingMax = 0;
         spreadsheet.getState().rowGroupingMax = 0;
@@ -730,33 +747,36 @@ public class SpreadsheetFactory implements Serializable {
     }
 
     /**
-     * Loads images for the currently active sheet and adds them to the target
+     * Loads overlays for the currently active sheet and adds them to the target
      * Spreadsheet.
      *
      * @param spreadsheet
      *            Target Spreadsheet
      */
-    static void loadSheetImages(Spreadsheet spreadsheet) {
+    static void loadSheetOverlays(Spreadsheet spreadsheet) {
         final Sheet sheet = spreadsheet.getActiveSheet();
-        Drawing drawing = getDrawing(sheet);
+        Drawing drawing = getDrawingPatriarch(sheet);
+
         if (drawing instanceof XSSFDrawing) {
             for (XSSFShape shape : ((XSSFDrawing) drawing).getShapes()) {
+                SheetOverlayWrapper overlayWrapper = null;
+
+                if (spreadsheet.isChartsEnabled()
+                        && shape instanceof XSSFGraphicFrame) {
+                        overlayWrapper = tryLoadChart(spreadsheet, drawing,
+                                (XSSFGraphicFrame) shape);
+                }
                 if (shape instanceof XSSFPicture) {
-                    // in XSSFPicture.getPreferredSize(double) POI presumes that
-                    // XSSFAnchor is always of type XSSFClientAnchor
-                    XSSFClientAnchor anchor = (XSSFClientAnchor) shape
-                            .getAnchor();
-                    XSSFPictureData pictureData = ((XSSFPicture) shape)
-                            .getPictureData();
-                    SheetImageWrapper image = new SheetImageWrapper();
-                    image.setAnchor(anchor);
-                    image.setMIMEType(pictureData.getMimeType());
-                    image.setData(pictureData.getData());
-                    if (anchor != null) {
-                        spreadsheet.sheetImages.add(image);
+                    overlayWrapper = loadXSSFPicture((XSSFPicture) shape);
+                }
+
+                if (overlayWrapper != null) {
+                    if (overlayWrapper.getAnchor() != null) {
+                        spreadsheet.addSheetOverlay(overlayWrapper);
                     } else {
                         LOGGER.log(Level.FINE, "IMAGE WITHOUT ANCHOR: "
-                                + pictureData.toString());
+                                + overlayWrapper);
+
                         // FIXME seems like there is a POI bug, images that have
                         // in Excel (XLSX) been se as a certain type (type==3)
                         // will get a null anchor.
@@ -764,36 +784,124 @@ public class SpreadsheetFactory implements Serializable {
                         // 0 = Move and size with Cells,
                         // 2 = Move but don't size with cells,
                         // 3 = Don't move or size with cells.
+
+                        // Michael: maybe it's okay, if they are not moved or
+                        // sized with cells, how can there be an anchor? Their
+                        // position is probably defined somehow else.
                     }
                 }
+
             }
         } else if (drawing instanceof HSSFPatriarch) {
             for (HSSFShape shape : ((HSSFPatriarch) drawing).getChildren()) {
                 if (shape instanceof HSSFPicture) {
-                    HSSFClientAnchor anchor = (HSSFClientAnchor) shape
-                            .getAnchor();
-                    HSSFPictureData pictureData = ((HSSFPicture) shape)
-                            .getPictureData();
-                    SheetImageWrapper image = new SheetImageWrapper();
-                    image.setAnchor(anchor);
-                    image.setMIMEType(pictureData.getMimeType());
-                    image.setData(pictureData.getData());
-                    if (anchor != null) {
-                        spreadsheet.sheetImages.add(image);
-                    } else {
-                        LOGGER.log(Level.FINE, "IMAGE WITHOUT ANCHOR: "
-                                + pictureData.toString());
-                    }
+                    loadHSSFPicture(spreadsheet, shape);
                 }
             }
         }
+    }
+
+    private static void loadHSSFPicture(Spreadsheet spreadsheet, HSSFShape shape) {
+        HSSFClientAnchor anchor = (HSSFClientAnchor) shape.getAnchor();
+        HSSFPictureData pictureData = ((HSSFPicture) shape).getPictureData();
+        if (anchor != null) {
+            SheetImageWrapper image = new SheetImageWrapper(anchor,
+                    pictureData.getMimeType(), pictureData.getData());
+            spreadsheet.addSheetOverlay(image);
+        } else {
+            LOGGER.log(Level.FINE,
+                    "IMAGE WITHOUT ANCHOR: " + pictureData.toString());
+        }
+    }
+
+    private static SheetImageWrapper loadXSSFPicture(XSSFPicture shape) {
+        // in XSSFPicture.getPreferredSize(double) POI presumes that
+        // XSSFAnchor is always of type XSSFClientAnchor
+        XSSFClientAnchor anchor = (XSSFClientAnchor) shape.getAnchor();
+
+        XSSFPictureData pictureData = shape.getPictureData();
+
+        SheetImageWrapper image = new SheetImageWrapper(anchor,
+                pictureData.getMimeType(), pictureData.getData());
+
+        return image;
+    }
+
+    /**
+     * Returns a chart wrapper if this drawing has a chart, otherwise null.
+     */
+    private static SheetChartWrapper tryLoadChart(
+            final Spreadsheet spreadsheet, final Drawing drawing,
+            final XSSFGraphicFrame frame) {
+        try {
+            XSSFChart chartXml = getChartForFrame((XSSFDrawing) drawing, frame);
+
+            if (chartXml != null) {
+                XSSFClientAnchor anchor = getAnchorFromParent(frame
+                        .getCTGraphicalObjectFrame());
+
+                return new SheetChartWrapper(anchor, chartXml, spreadsheet);
+            }
+        } catch (NullPointerException e) {
+            // means we did not find any chart for this drawing (not an error,
+            // normal situation) or we could not load it (corrupt file?
+            // unrecognized format?), nothing to do.
+        }
+
+        return null;
+    }
+
+    /**
+     * Copy-pasted from XSSFDrawing (private there) with slight modifications.
+     * Used to get anchors from an XSSFShape's parent.
+     */
+    private static XSSFClientAnchor getAnchorFromParent(XmlObject obj) {
+        XSSFClientAnchor anchor = null;
+
+        XmlObject parentXbean = null;
+        XmlCursor cursor = obj.newCursor();
+        if (cursor.toParent()) {
+            parentXbean = cursor.getObject();
+        }
+        cursor.dispose();
+        if (parentXbean != null) {
+            if (parentXbean instanceof CTTwoCellAnchor) {
+                CTTwoCellAnchor ct = (CTTwoCellAnchor) parentXbean;
+                anchor = new XSSFClientAnchor((int) ct.getFrom().getColOff(),
+                        (int) ct.getFrom().getRowOff(), (int) ct.getTo()
+                                .getColOff(), (int) ct.getTo().getRowOff(), ct
+                                .getFrom().getCol(), ct.getFrom().getRow(), ct
+                                .getTo().getCol(), ct.getTo().getRow());
+            } else if (parentXbean instanceof CTOneCellAnchor) {
+                CTOneCellAnchor ct = (CTOneCellAnchor) parentXbean;
+                anchor = new XSSFClientAnchor((int) ct.getFrom().getColOff(),
+                        (int) ct.getFrom().getRowOff(), 0, 0, ct.getFrom()
+                                .getCol(), ct.getFrom().getRow(), 0, 0);
+            }
+        }
+        return anchor;
+    }
+
+    /**
+     * Returns a chart or null if this frame doesn't have one.
+     */
+    private static XSSFChart getChartForFrame(XSSFDrawing drawing,
+            XSSFGraphicFrame frame) {
+        // the chart is supposed to be there if an ID is found
+        return (XSSFChart) drawing.getRelationById(getChartId(frame));
+    }
+
+    private static String getChartId(XSSFGraphicFrame frame) {
+        return frame.getCTGraphicalObjectFrame().getGraphic().getGraphicData()
+                .getDomNode().getChildNodes().item(0).getAttributes()
+                .getNamedItem("r:id").getNodeValue();
     }
 
     /*
      * The getDrawingPatriarch() method is missing from the interface, so we
      * have to check each implementation. SXSSFSheet is unsupported.
      */
-    private static Drawing getDrawing(Sheet sheet) {
+    private static Drawing getDrawingPatriarch(Sheet sheet) {
         if (sheet instanceof XSSFSheet) {
             return ((XSSFSheet) sheet).getDrawingPatriarch();
         } else if (sheet instanceof HSSFSheet) {
@@ -893,6 +1001,19 @@ public class SpreadsheetFactory implements Serializable {
             spreadsheet.getState().defRowH = DEFAULT_ROW_HEIGHT_POINTS;
         } else {
             spreadsheet.getState().defRowH = defaultRowHeightInPoints;
+        }
+    }
+
+    private static void setDefaultColumnWidth(Spreadsheet spreadsheet,
+            final Sheet sheet) {
+        int charactersToPixels = ExcelToHtmlUtils.getColumnWidthInPx(sheet
+                .getDefaultColumnWidth() * 256);
+        if (charactersToPixels > 0) {
+            spreadsheet.getState().defColW = charactersToPixels;
+        } else {
+            spreadsheet.getState().defColW = SpreadsheetUtil
+                    .getDefaultColumnWidthInPx();
+            sheet.setDefaultColumnWidth(DEFAULT_COL_WIDTH_UNITS);
         }
     }
 

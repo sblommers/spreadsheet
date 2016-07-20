@@ -511,30 +511,45 @@
             <td>API for creating Vaadin TestBench tests for Spreadsheet.
             </td>
         </tr>
+        <tr>
+            <td>
+                <pre>vaadin-spreadsheet-charts/</pre>
+            </td>
+            <td>A dependency for using Vaadin Spreadsheet with Vaadin Charts.
+            </td>
+        </tr>
     </table>
 
     <h2 id="changelog">Change log for Vaadin Spreadsheet ${project.version}</h2>
-    <p>This release includes the following enhancements and fixes. Please see <a href="http://dev.vaadin.com/query?status=closed&milestone=Spreadsheet+${project.version}&group=type&max=200&col=id&col=summary&col=milestone&col=status&col=type&col=priority&col=component&order=priority">dev.vaadin.com</a> for a detailed listing.</p>
+    <p>This release introduces the Vaadin Charts support. To enable charts support add vaadin-spreadsheet-charts dependency.</p>
 
     <ul>
-      <li>Add support for cell grouping</li>
-      <li>Support mouse selection when editing cell formulas</li>
-      <li>Improved rounding rules and rounding for general-type cells</li>
-      <li>Improved hyperlink handling</li>
-      <li>Improved invalid formula handling</li>
-      <li>Improved conditional formatting</li>
+      <li>Performance improvements when first column or row is hidden</li>
+      <li>Added new API to allow disabling the chart overlays</li>
+      <li><a href="http://dev.vaadin.com/ticket/19546">#19546</a> Fixed issue with parent layout resizing</li>
+      <li>Fixed an issue that caused merged cells to be positioned at the bottom of the sheet after being scrolled out of view</li>
+      <li>Spreadsheet is not cropped anymore when parent layout has undefined size</li>
+      <li>Fixed an issue with updating charts category, when referenced cell is modified</li>
+      <li>Fixed an issue with updating scatter point X value, when referenced cell is modified</li>
+      <li>Fixed an issue with line detection in scatter charts</li>
+      <li>Prevent exception in embedded charts for xlsx files in created in Numbers for Mac</li>
+      <li><a href="https://dev.vaadin.com/ticket/19444">#19444</a> Fixed a problem with scrolling in comments</li>
+      <li>Fixed an issue with custom formatted numbers</li>
+      <li>Fixed an issue when deleting a comment, which was created in Excel</li>
+      <li><a href="https://dev.vaadin.com/ticket/18074">#18074</a>Introduced new API to handle or prevent delete actions</li>
     </ul>
 
     <h2 id="api-changes">API changes</h2>
     <ul>
-        <li>PopupButton is no longer an AbstractComponentContainer, and has only one child component. Use a layout if multiple components are needed.</li>
+        <li>New method spreadsheet.setChartsEnabled to show or hide charts.</li>
+        <li>New method spreadsheet.isChartsEnabled to check if embedded charts are shown.</li>
+        <li>New method spreadsheet.setCellDeletionHandler to add a custom implementation of CellDeletionHandler.</li>
     </ul>
 
     <h2 id="limitations">Limitations</h2>
     <p>Vaadin Spreadsheet ${project.version} has the following limitations:</p>
 
     <ul>
-      <li>There is no direct support for charts. You can, however, bind data in a spreadsheet to a chart using Vaadin Charts. See <a href="http://demo.vaadin.com/spreadsheet">the demo</a> for an example.</li>
       <li>There are no provided toolbars or menus for formatting cells.</li>
       <li>Vaadin Spreadsheet is heavily based on Apache POI and, as such, inherits all limitations of this library. See <a href="http://poi.apache.org/spreadsheet/limitations.html">Apache POI - HSSF and XSSF Limitations</a> for a partial list of these.</li>
       <li>There is only limited support for the older XLS format. Please use XLSX for a better experience.</li>

@@ -1,14 +1,28 @@
 package com.vaadin.addon.spreadsheet.elements;
 
-import java.util.List;
-
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.WebElement;
+/*
+ * #%L
+ * Vaadin Spreadsheet Testbench API
+ * %%
+ * Copyright (C) 2013 - 2016 Vaadin Ltd
+ * %%
+ * This program is available under Commercial Vaadin Add-On License 3.0
+ * (CVALv3).
+ * 
+ * See the file license.html distributed with this software for more
+ * information about licensing.
+ * 
+ * You should have received a copy of the CVALv3 along with this program.
+ * If not, see <http://vaadin.com/license/cval-3>.
+ * #L%
+ */
 
 import com.vaadin.testbench.By;
 import com.vaadin.testbench.elementsbase.AbstractElement;
-import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebElement;
+
+import java.util.List;
 
 /**
  * This class represents one cell within the currently active sheet of a
@@ -38,6 +52,7 @@ public class SheetCellElement extends AbstractElement {
             cellValueInput.clear();
             cellValueInput.sendKeys(newValue);
             cellValueInput.sendKeys(Keys.TAB);
+            getCommandExecutor().waitForVaadin();
         }
     }
 
